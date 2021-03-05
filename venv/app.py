@@ -18,9 +18,10 @@ app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 #df = pd.read_csv('covid19 updated.csv')
 connection = pyodbc.connect("Driver={SQL Server};"
-                            "Server=DESKTOP-NBM5VJF;"
-                            "Database=msdb;"
-                            "IntegratedSecurity = false"
+                            "Server=18.230.114.111;"
+                            "Database=EnfasisPreRegistro_Prod;"
+                            "Uid=enfasis;"
+                            "Pwd={enfasisLive2020!};"
                             "autocommit = True")
 
 
@@ -170,4 +171,4 @@ def update_output(value):
 
 
 if __name__ == '__main__':
-    app.run_server(host='127.0.0.1', debug=True)
+    app.run_server(debug=True)
