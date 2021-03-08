@@ -16,39 +16,43 @@ external_stylesheets = [dbc.themes.LUX]
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
-#df = pd.read_csv('covid19 updated.csv')
-connection = pyodbc.connect("Driver={SQL Server};"
-                            "Server=18.230.114.111;"
-                            "Database=EnfasisPreRegistro_Prod;"
-                            "Uid=enfasis;"
-                            "Pwd={enfasisLive2020!};"
-                            "autocommit = True")
+
+# CONNECT TO DB
+""" connection = pyodbc.connect('DRIVER={SQL Server};SERVER={18.230.114.111};DATABASE={EnfasisPreRegistro_Prod};UID={enfasis};PWD={enfasisLive2020!};')
+connection = pyodbc.connect('Driver={SQL Server};'
+                      'Server=18.230.114.111;'
+                      'PORT=1433;'
+                      'Database=EnfasisPreRegistro_Prod;'
+                      'UID=enfasis;'
+                      'PWD={enfasisLive2020!}')"""
+
+connection = pyodbc.connect("Driver={ODBC Driver 17 for SQL Server};"
+                      "Server=18.230.114.111;"
+                      "Database=EnfasisPreRegistro_Prod;"
+                      "UID=enfasis;"
+                      "PWD=EnfasisLive2020!")
 
 
 cursor = connection.cursor()
-#rows = cursor.execute("Select * from dbo.tbl_PreRegistro").fetchall()
 
+
+# DATAFRAMES
 df = pd.read_sql_query("Select * from dbo.tbl_PreRegistro", connection)
 df2 = pd.read_sql_query("Select * from dbo.tbl_PreRegistroPortal", connection)
 del_col = ['PaginaWeb', 'IdCargo', 'IdArea', 'IdSector', 'IdGiro', 'Custom1', 'PaginaWeb', 
 'PaginaWeb', 'Custom2','Custom3','Custom4','Custom5','IdCiudad','IdColonia',
 'CodigoPostal','CalleNombre','CalleNumero','PreCargado','ZohoSync','WelcomeMail','Categoria']
-df_table = df.copy()
-df_table.drop(del_col, inplace=True, axis=1)
-df_table = df_table.loc[df_table['IdEvento'] == 2]
+df_merged = pd.merge(df, df2, left_on='Id', right_on='IdUsuario')
+df_merged = df_merged.loc[df_merged['IdPortal'] == 2]
+df_merged.drop(del_col, inplace=True, axis=1)
+df_merged.drop_duplicates('Id_x', inplace = True)
+""" df_table = pd.merge(df, df2, left_on='Id', right_on='IdUsuario')
+df_table =df_table.loc[df_table['IdPortal'] == 2]
+df_table.drop(del_col, inplace=True, axis=1) """
+#df_table = df_table.loc[df_table['IdPortal'] == 2]
 
-#df2.rename(columns={'IdUsuario': 'Id'}, inplace = True)
 
-
-# rename columns
-""" df.rename(columns={'Intensive Care Unit (ICU)': 'Intensive Care Unit',
-                   'General Wards MOH report': 'General wards',
-                   'In Isolation MOH report': 'In Isolation',
-                   'Total Completed Isolation MOH report': 'Total completed isolation',
-                   'Total Hospital Discharged MOH report': 'Total discharged from hospital',
-                   'Local cases residing in dorms MOH report': 'Local cases residing in dorms',
-                   'Local cases not residing in doms MOH report': 'Local cases not residing in dorms'},inplace=True) """
-
+# LAYOUT FOR WEBSITE - HTML
 app.layout = html.Div([
     dbc.Container([
         dbc.Row([
@@ -67,13 +71,12 @@ app.layout = html.Div([
         #,
 
     dcc.Dropdown(
-        id='covid_period',
+        id='event_selector',
         options=[
-            {'label': 'Learn & Connects', 'value': '1'},
-            {'label': 'Learn & Connect', 'value': '2'},
-            {'label': 'Learn & Connect', 'value': '3'}
+            {'label': 'Learn & Connect', 'value': '1'},
+            #{'label': 'Learn & Connect', 'value': '2'}
         ],
-        value='2',
+        value='1',
         style={'width': '48%', 'margin-left':'5px'}
         ),
 
@@ -102,8 +105,9 @@ app.layout = html.Div([
 
     dash_table.DataTable(
         id='table',
-        columns=[{"name": i, "id": i} for i in df_table.loc[df_table['IdEvento'] == 2].columns],
-        data=df_table.to_dict('records'),
+        columns=[{"name": i, "id": i} for i in df_merged.columns],
+        data=df_merged.to_dict('records'),
+        export_format="csv",
         style_table={'overflowX': 'scroll'},
         style_cell = {
                 'font_color': 'blue',
@@ -112,7 +116,7 @@ app.layout = html.Div([
             },
         style_cell_conditional=
             [{'if': {'column_id': 'Id'},
-            'width': '130px', 'text_align': 'center'}]
+            'width': '160px', 'text_align': 'center'}]
     )
 
     ])
@@ -120,29 +124,27 @@ app.layout = html.Div([
 ])
 
 
-# allow for easy sieving of data to see how the situation has changed
-# can observe whether government measures are effective in reducing the number of cases
 @app.callback(Output('graph_by_period', 'figure'),
-              [Input('covid_period', 'value')])
+              [Input('event_selector', 'value')])
 
-def update_graph(covid_period_name):
+def update_graph(event_name):
     # not sure why this doesn't work, Daily Confirmed is an invalid key
     #col = ['Daily Imported', 'Daily Local transmission']
 
-    print(covid_period_name)
-    df_lc = pd.merge(df, df2, left_on='Id', right_on='IdUsuario')
-    df_lc = df_lc.loc[df_lc['IdEvento'] == 2]
+    print(event_name)
+    df_lc = df_merged
+    #df_lc = df_lc.loc[df_lc['IdPortal'] == 2]
 
     #print (df2)
     print (df_lc)
-    container = "Datos sobre el evento: {}".format(covid_period_name)
+    container = "Datos sobre el evento: {}".format(event_name)
     df_lc2 = df_lc.copy()
     df_lc2 = (pd.to_datetime(df_lc2['FechaCreacion'])
     .dt.floor('d')
     .value_counts()
     .rename_axis('date')
     .reset_index(name='count'))
-    #df_lc2 = df_lc2[df_lc2['idEvento'] == covid_period_name]
+    #df_lc2 = df_lc2[df_lc2['idEvento'] == event_name]
 
     #print (df_lc2)
     fig = px.bar(df_lc2, x=df_lc2['date'], y=df_lc2['count'])
@@ -161,14 +163,14 @@ def update_graph(covid_period_name):
 
 @app.callback(
 dash.dependencies.Output('my-LED-display', 'value'),
-[dash.dependencies.Input('covid_period', 'value')])
+[dash.dependencies.Input('event_selector', 'value')])
 
 
 def update_output(value):
-    df_sum = pd.merge(df, df2, left_on='Id', right_on='IdUsuario')
-    df_sum = df_sum.loc[df_sum['IdEvento'] == 2]
+    df_sum = df_merged
+    df_sum = df_sum.loc[df_sum['IdPortal'] == 2]
     return str(len(df_sum.index))
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(host='127.0.0.1', debug=True)
