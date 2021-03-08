@@ -2,7 +2,7 @@ import plotly.graph_objects as go
 import plotly.express as px  # (version 4.7.0)
 import plotly.graph_objects as go
 import pandas as pd
-
+from users import USERNAME_PASSWORD_PAIRS
 import pyodbc
 import dash
 import dash_core_components as dcc
@@ -18,14 +18,6 @@ app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 
 # CONNECT TO DB
-""" connection = pyodbc.connect('DRIVER={SQL Server};SERVER={18.230.114.111};DATABASE={EnfasisPreRegistro_Prod};UID={enfasis};PWD={enfasisLive2020!};')
-connection = pyodbc.connect('Driver={SQL Server};'
-                      'Server=18.230.114.111;'
-                      'PORT=1433;'
-                      'Database=EnfasisPreRegistro_Prod;'
-                      'UID=enfasis;'
-                      'PWD={enfasisLive2020!}')"""
-
 connection = pyodbc.connect("Driver={ODBC Driver 17 for SQL Server};"
                       "Server=18.230.114.111;"
                       "Database=EnfasisPreRegistro_Prod;"
@@ -136,7 +128,7 @@ def update_graph(event_name):
     #df_lc = df_lc.loc[df_lc['IdPortal'] == 2]
 
     #print (df2)
-    print (df_lc)
+    #print (df_lc)
     container = "Datos sobre el evento: {}".format(event_name)
     df_lc2 = df_lc.copy()
     df_lc2 = (pd.to_datetime(df_lc2['FechaCreacion'])
@@ -173,4 +165,10 @@ def update_output(value):
 
 
 if __name__ == '__main__':
-    app.run_server(host='127.0.0.1', debug=True)
+    app.run_server()
+
+# App authentication
+auth = dash_auth.BasicAuth(
+    app,
+    VALID_USERNAME_PASSWORD_PAIRS
+)
